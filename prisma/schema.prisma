@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String   @unique @db.VarChar(255)
+  encryptionKeyHash String   @map("encryption_key_hash") @db.VarChar(255)
+  gdprConsent       Json     @map("gdpr_consent")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  notes     Note[]
+  folders   Folder[]
+  tags      Tag[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Note {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  folderId           String?  @map("folder_id") @db.Uuid
+  title              String   @db.VarChar(255)
+  transcription      String?  @db.Text
+  summary            String?  @db.Text
+  audioUrl           String?  @map("audio_url") @db.VarChar(500)
+  encryptedAudioKey  String?  @map("encrypted_audio_key") @db.VarChar(255)
+  duration           Int?     @db.Integer
+  metadata           Json?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder Folder?   @relation(fields: [folderId], references: [id])
+  tags   NoteTag[]
+
+  // Indexes
+  @@index([userId])
+  @@index([createdAt])
+  @@index([transcription(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("notes")
+}
+
+model Folder {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children Folder[] @relation("FolderHierarchy")
+  notes    Note[]
+
+  @@map("folders")
+}
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes NoteTag[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model NoteTag {
+  noteId String @map("note_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+
+  // Relations
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+  @@map("note_tags")
+}
+
+model AuditLog {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String?   @map("user_id") @db.Uuid
+  action       String    @db.VarChar(100)
+  resourceType String    @map("resource_type") @db.VarChar(50)
+  resourceId   String?   @map("resource_id") @db.Uuid
+  details      Json?
+  ipAddress    String?   @map("ip_address") @db.Inet
+  userAgent    String?   @map("user_agent") @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  // Indexes
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
