@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Code Quality Analyzer",
+  "description": "Monitors source code files for changes and provides suggestions for code quality improvements, including identifying code smells, recommending design patterns, and ensuring adherence to best practices for readability, maintainability, and performance.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.js",
+      "src/**/*.jsx",
+      "prisma/**/*.prisma",
+      "scripts/**/*.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze the modified code files for potential improvements. Focus on:\n\n1. **Code Smells**: Identify any code smells such as duplicated code, long functions, large classes, excessive parameters, or inappropriate coupling.\n\n2. **Design Patterns**: Suggest appropriate design patterns that could improve the code structure (e.g., Factory, Strategy, Repository, Dependency Injection).\n\n3. **Best Practices**: Ensure adherence to:\n   - TypeScript strict mode and proper typing (no `any` types)\n   - Service layer pattern for business logic\n   - Proper error handling with typed errors and fallback mechanisms\n   - Security best practices (input validation, encryption, parameterized queries)\n   - Performance optimizations (caching, indexing, efficient queries)\n\n4. **Readability**: Check for clear naming conventions, proper code organization, adequate comments for complex logic, and consistent formatting.\n\n5. **Maintainability**: Look for opportunities to reduce complexity, improve modularity, enhance testability, and follow SOLID principles.\n\n6. **Performance**: Identify potential bottlenecks, unnecessary computations, inefficient algorithms, or missing optimizations.\n\nProvide specific, actionable suggestions with code examples where appropriate. Ensure all recommendations maintain existing functionality and align with the project's technical guidelines (Next.js 15, React 19, TypeScript strict mode, Prisma ORM, service layer pattern)."
+  }
+}

@@ -17,6 +17,7 @@ VoiceFlow AI is a production-ready voice note-taking application that combines r
 - **Database**: PostgreSQL with Prisma ORM
 - **AI Services**: Deepgram Nova-2, AssemblyAI (fallback), OpenAI GPT-4o
 - **Storage**: S3-compatible encrypted object storage
+- **Security**: Arcjet (bot detection, rate limiting, shield protection)
 - **Infrastructure**: Vercel Edge Functions, Redis caching
 
 ## Getting Started
@@ -67,12 +68,14 @@ pnpm run dev
 Required environment variables (see `.env.example` for full list):
 
 - `DATABASE_URL`: PostgreSQL connection string
+- `ARCJET_KEY`: Arcjet security API key (get from https://app.arcjet.com)
 - `DEEPGRAM_API_KEY`: Primary transcription service
 - `ASSEMBLYAI_API_KEY`: Fallback transcription service
 - `OPENAI_API_KEY`: AI content processing
 - `S3_*`: Storage configuration
 - `ENCRYPTION_KEY`: 32-character encryption key
 - `REDIS_URL`: Redis cache connection
+- `ARCJET_KEY`: Arcjet API key for security protection
 
 ## Development Commands
 
@@ -88,18 +91,66 @@ pnpm run db:push      # Push schema changes
 pnpm run db:migrate   # Create migration
 ```
 
+## Documentation
+
+- [Setup Guide](docs/SETUP.md) - Complete setup instructions
+- [Configuration Reference](docs/CONFIGURATION.md) - Environment and config details
+- [Authentication & GDPR](docs/AUTHENTICATION.md) - Authentication system and GDPR compliance
+- [Arcjet Security](docs/ARCJET_SECURITY.md) - API security integration guide
+- [Database Schema](prisma/README.md) - Database documentation
+- [Security Guidelines](.kiro/steering/security.md) - Security best practices
+
+## Database Schema
+
+The application uses PostgreSQL with Prisma ORM. Key models:
+
+- **User**: User accounts with GDPR consent and encryption key management
+- **Note**: Voice notes with transcription, AI summaries, and encrypted audio
+- **Folder**: Hierarchical folder structure for organization
+- **Tag**: User-specific tags for categorization
+- **AuditLog**: GDPR-compliant audit trail for all operations
+
+Features:
+- UUID primary keys with PostgreSQL `gen_random_uuid()`
+- Cascade deletes for referential integrity
+- Performance indexes on frequently queried fields
+- Full support for hierarchical folders and many-to-many tagging
+- Encrypted audio storage with user-controlled keys
+
+See `prisma/README.md` for detailed schema documentation.
+
 ## Project Structure
 
 ```
 voiceflow-ai/
 ├── src/
 │   ├── app/                 # Next.js App Router pages
+│   │   └── api/             # API routes
+│   │       ├── auth/        # Authentication endpoints
+│   │       └── gdpr/        # GDPR compliance endpoints
 │   ├── components/          # React components
 │   ├── lib/                 # Utilities and services
+│   │   └── services/        # Business logic services
+│   │       ├── auth.ts      # Authentication service
+│   │       ├── audit.ts     # Audit logging service
+│   │       ├── encryption.ts # Encryption utilities
+│   │       ├── gdpr.ts      # GDPR compliance service
+│   │       └── jwt.ts       # JWT token management
 │   ├── types/               # TypeScript definitions
+│   │   ├── auth.ts          # Authentication types
+│   │   ├── audio.ts         # Audio recording and processing types
+│   │   └── api.ts           # API response types
 │   └── hooks/               # Custom React hooks
 ├── prisma/                  # Database schema and migrations
+│   ├── schema.prisma        # Prisma schema definition
+│   ├── migrations/          # Database migrations
+│   ├── seed.ts              # Database seeding script
+│   └── README.md            # Schema documentation
 ├── tests/                   # Test files
+├── docs/                    # Documentation
+│   ├── SETUP.md             # Setup guide
+│   ├── CONFIGURATION.md     # Configuration reference
+│   └── AUTHENTICATION.md    # Authentication & GDPR guide
 └── .kiro/                   # Kiro AI assistant configuration
 ```
 
@@ -113,11 +164,18 @@ voiceflow-ai/
 
 ## Security & Compliance
 
+- **Arcjet Security**: Bot protection, rate limiting, and attack prevention on all API routes
 - End-to-end encryption with AES-256-GCM
 - GDPR-compliant data handling
 - User-controlled encryption keys
 - Comprehensive audit logging
 - TLS 1.3 for all communications
+- **Arcjet Protection**:
+  - Bot detection and blocking (allows search engines)
+  - Token bucket rate limiting (5 tokens/10s, capacity: 10)
+  - Shield protection against SQL injection and common attacks
+  - Hosting IP detection for bot prevention
+  - Spoofed bot verification
 
 ## License
 

@@ -30,6 +30,7 @@ voiceflow-ai/
 │   ├── db/                    # Database utilities
 │   ├── auth/                  # Authentication utilities
 │   ├── validation/            # Input validation schemas
+│   ├── arcjet.ts              # Arcjet security configurations
 │   └── utils.ts               # General utilities
 ├── types/                     # TypeScript type definitions
 │   ├── api.ts                 # API response types
@@ -91,12 +92,19 @@ voiceflow-ai/
 
 ```typescript
 // app/api/audio/upload/route.ts
+import { ajAI, handleArcjetDecision } from "@/lib/arcjet";
+
 export async function POST(request: Request) {
-  // 1. Input validation
-  // 2. Authentication check
-  // 3. Business logic (via service)
-  // 4. Error handling
-  // 5. Response formatting
+  // 1. Arcjet security protection
+  const decision = await ajAI.protect(request, { requested: 2 });
+  const errorResponse = handleArcjetDecision(decision);
+  if (errorResponse) return errorResponse;
+  
+  // 2. Input validation
+  // 3. Authentication check
+  // 4. Business logic (via service)
+  // 5. Error handling
+  // 6. Response formatting
 }
 ```
 

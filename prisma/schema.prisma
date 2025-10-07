@@ -9,11 +9,15 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  // Connection pooling configuration for performance (Requirement 7.4)
+  // DATABASE_URL should use connection pooling (e.g., PgBouncer)
+  // DIRECT_URL should be direct connection for migrations
 }
 
 model User {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email             String   @unique @db.VarChar(255)
+  passwordHash      String   @map("password_hash") @db.VarChar(255)
   encryptionKeyHash String   @map("encryption_key_hash") @db.VarChar(255)
   gdprConsent       Json     @map("gdpr_consent")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -47,10 +51,10 @@ model Note {
   folder Folder?   @relation(fields: [folderId], references: [id])
   tags   NoteTag[]
 
-  // Indexes
-  @@index([userId])
-  @@index([createdAt])
-  @@index([transcription(ops: raw("gin_trgm_ops"))], type: Gin)
+  // Indexes for performance optimization
+  @@index([userId], name: "idx_notes_user_id")
+  @@index([createdAt], name: "idx_notes_created_at")
+  @@index([folderId], name: "idx_notes_folder_id")
   @@map("notes")
 }
 
@@ -67,6 +71,9 @@ model Folder {
   children Folder[] @relation("FolderHierarchy")
   notes    Note[]
 
+  // Indexes for performance optimization
+  @@index([userId], name: "idx_folders_user_id")
+  @@index([parentId], name: "idx_folders_parent_id")
   @@map("folders")
 }
 
@@ -80,7 +87,9 @@ model Tag {
   user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   notes NoteTag[]
 
+  // Indexes for performance optimization
   @@unique([userId, name])
+  @@index([userId], name: "idx_tags_user_id")
   @@map("tags")
 }
 
@@ -110,8 +119,9 @@ model AuditLog {
   // Relations
   user User? @relation(fields: [userId], references: [id])
 
-  // Indexes
-  @@index([userId])
-  @@index([createdAt])
+  // Indexes for performance optimization
+  @@index([userId], name: "idx_audit_logs_user_id")
+  @@index([createdAt], name: "idx_audit_logs_created_at")
+  @@index([resourceType], name: "idx_audit_logs_resource_type")
   @@map("audit_logs")
 }

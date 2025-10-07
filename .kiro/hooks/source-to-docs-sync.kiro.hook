@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "name": "Source to Docs Sync",
+  "description": "Monitors all TypeScript source files, configuration files, and schema files for changes and triggers documentation updates in README.md or docs/ folder",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "prisma/schema.prisma",
+      "package.json",
+      "tsconfig.json",
+      "next.config.ts",
+      "vitest.config.ts",
+      "tailwind.config.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source files have been modified. Please review the changes and update the documentation accordingly. If the changes affect API routes, services, components, or database schema, update the relevant sections in README.md. If there is a docs/ folder with specific documentation files (like SETUP.md), update those as well to reflect the new changes. Ensure that any new features, configuration changes, or architectural updates are properly documented."
+  }
+}

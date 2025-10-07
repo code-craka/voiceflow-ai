@@ -37,10 +37,30 @@ try {
 
 ```typescript
 // src/app/api/*/route.ts - Required structure
+import { ajAuthAPI, handleArcjetDecision } from "@/lib/arcjet";
+
 export async function POST(request: Request) {
-  // 1. Input validation with Zod schemas
-  // 2. Authentication check
-  // 3. Rate limiting check
+  // 1. Arcjet security protection (REQUIRED)
+  const decision = await ajAuthAPI.protect(request);
+  const errorResponse = handleArcjetDecision(decision);
+  if (errorResponse) return errorResponse;
+  
+  // 2. Input validation with Zod schemas
+  // 3. Authentication check
+  // 4. Business logic via service layer
+  // 5. Error handling with fallback
+  // 6. Structured response
+}
+
+export async function POST(request: Request) {
+  // 1. Arcjet protection check
+  const decision = await aj.protect(request, { requested: 5 });
+  if (decision.isDenied()) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  
+  // 2. Input validation with Zod schemas
+  // 3. Authentication check
   // 4. Business logic via service layer
   // 5. Error handling with fallback
   // 6. Structured response
@@ -63,10 +83,20 @@ export async function POST(request: Request) {
 
 ### Security Requirements
 
+- **Arcjet Protection**: All API routes must use Arcjet security (see `src/lib/arcjet.ts`)
+  - Use `ajPublicAPI` for public endpoints
+  - Use `ajAuthAPI` for authenticated endpoints
+  - Use `ajSensitive` for auth/payment operations
+  - Use `ajAI` for AI/transcription endpoints
 - Encrypt all audio files before storage using AES-256-GCM
 - Validate all file uploads (format, size, content type)
 - Use parameterized queries only (Prisma prevents SQL injection)
 - Implement GDPR-compliant audit logging for all data operations
+- **Arcjet Protection**: Apply to all public API endpoints
+  - Shield protection for common attacks
+  - Bot detection with search engine allowlist
+  - Rate limiting with token bucket algorithm
+  - Hosting IP and spoofed bot detection
 
 ## Performance Standards
 
