@@ -11,14 +11,23 @@ async function main(): Promise<void> {
     where: { email: 'test@voiceflow.ai' },
     update: {},
     create: {
+      name: 'Test User',
       email: 'test@voiceflow.ai',
-      passwordHash: crypto.createHash('sha256').update('test-password').digest('hex'),
+      emailVerified: true,
       encryptionKeyHash: crypto.createHash('sha256').update('test-encryption-key').digest('hex'),
       gdprConsent: {
         dataProcessing: true,
         voiceRecording: true,
         aiProcessing: true,
         consentDate: new Date().toISOString(),
+      },
+      // Password will be set via Better Auth Account table
+      accounts: {
+        create: {
+          accountId: 'test@voiceflow.ai',
+          providerId: 'credential',
+          password: crypto.createHash('sha256').update('test-password').digest('hex'), // Temporary - use Better Auth in production
+        },
       },
     },
   });

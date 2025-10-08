@@ -66,18 +66,39 @@ createdb voiceflow_ai
    - Add to `.env.local`: `ARCJET_KEY="your_key_here"`
    - Provides bot detection, rate limiting, and shield protection
 
-#### Storage Configuration (S3-Compatible)
+#### Storage Configuration (Appwrite Cloud)
 
-For AWS S3:
+VoiceFlow AI uses Appwrite Cloud Storage for encrypted audio file storage.
+
+1. **Sign up at Appwrite Cloud**:
+   - Visit [https://cloud.appwrite.io](https://cloud.appwrite.io)
+   - Create a new project
+
+2. **Get your project credentials**:
+   - Project ID: Found in project settings
+   - API Endpoint: `https://fra.cloud.appwrite.io/v1` (Frankfurt region)
+   - API Key: Create a new API key with Storage permissions
+
+3. **Create a storage bucket**:
+   - Navigate to Storage in your Appwrite console
+   - Create a new bucket named "voiceflow-ai"
+   - Configure permissions for authenticated users
+   - Note the Bucket ID
+
+4. **Add to `.env.local`**:
 ```bash
-S3_BUCKET_NAME="voiceflow-ai-audio"
-S3_ACCESS_KEY_ID="your_access_key"
-S3_SECRET_ACCESS_KEY="your_secret_key"
-S3_REGION="us-east-1"
-S3_ENDPOINT="https://s3.amazonaws.com"
+# Appwrite Configuration
+NEXT_PUBLIC_APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
+NEXT_PUBLIC_APPWRITE_PROJECT_ID="your_project_id_here"
+APPWRITE_API_KEY="your_api_key_here"
 ```
 
-For other S3-compatible services (MinIO, DigitalOcean Spaces, etc.), adjust the endpoint accordingly.
+**Storage Features**:
+- Maximum file size: 100MB
+- Supported formats: WebM, Opus, OGG, WAV, MP3, MPEG
+- Chunked uploads for large files (5MB chunks)
+- Automatic encryption at rest
+- CDN-backed delivery for fast access
 
 #### Arcjet Security (Required)
 
@@ -90,7 +111,9 @@ VoiceFlow AI uses Arcjet for API security, bot protection, and rate limiting.
 
 See `.kiro/steering/security.md` for detailed Arcjet configuration and usage patterns.
 
-#### Security Keys
+#### Better Auth Configuration (Required)
+
+VoiceFlow AI uses Better Auth for secure authentication with email/password support.
 
 Generate secure random keys:
 
@@ -98,20 +121,30 @@ Generate secure random keys:
 # Generate 32-character encryption key
 openssl rand -base64 32
 
-# Generate JWT secret
-openssl rand -base64 64
-
-# Generate NextAuth secret
+# Generate Better Auth secret
 openssl rand -base64 32
 ```
 
 Add to `.env.local`:
 ```bash
+# Encryption for audio files
 ENCRYPTION_KEY="your_32_char_key_here"
-JWT_SECRET="your_jwt_secret_here"
-NEXTAUTH_SECRET="your_nextauth_secret_here"
-NEXTAUTH_URL="http://localhost:3000"
-ARCJET_KEY="your_arcjet_key_here"
+
+# Better Auth configuration
+BETTER_AUTH_SECRET="your_better_auth_secret_here"
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+```
+
+**Important Notes**:
+- `BETTER_AUTH_SECRET`: Must be at least 32 characters. Used for session encryption and CSRF protection.
+- `BETTER_AUTH_URL`: Server-side base URL. Use `http://localhost:3000` for development, your production domain for production.
+- `NEXT_PUBLIC_BETTER_AUTH_URL`: Client-side base URL. Must match `BETTER_AUTH_URL` in most cases.
+
+**For Production**:
+```bash
+BETTER_AUTH_URL="https://yourdomain.com"
+NEXT_PUBLIC_BETTER_AUTH_URL="https://yourdomain.com"
 ```
 
 #### Redis Configuration
@@ -129,7 +162,14 @@ REDIS_URL="redis://username:password@host:port"
 ### 3. Initialize Database
 
 The database schema includes the following models:
+
+**Better Auth Tables**:
 - **User**: User accounts with GDPR consent and encryption keys
+- **Session**: Better Auth session management with token-based authentication
+- **Account**: Better Auth account storage for credentials (passwords) and OAuth providers
+- **Verification**: Better Auth email verification tokens
+
+**Application Tables**:
 - **Note**: Voice notes with transcription, summary, and encrypted audio
 - **Folder**: Hierarchical folder structure for organization
 - **Tag**: User-specific tags for categorization
@@ -153,6 +193,7 @@ pnpm run db:migrate
 
 The schema includes:
 - UUID primary keys with PostgreSQL `gen_random_uuid()`
+- Better Auth integration for secure authentication
 - Cascade deletes for data integrity
 - Performance indexes on userId, createdAt, and folderId
 - GDPR compliance with audit logging
@@ -211,6 +252,43 @@ pnpm run db:seed          # Seed database
 pnpm run verify-setup     # Verify environment setup
 ```
 
+### Authentication Flow
+
+VoiceFlow AI uses **Better Auth** for secure authentication:
+
+**Registration Flow**:
+1. User submits email and password via `SignUpForm` component
+2. Client calls `authClient.signUp.email()` from Better Auth client
+3. Better Auth creates user account with scrypt password hashing
+4. Custom fields (encryption key, GDPR consent) are added to user record
+5. Session is created with HTTP-only cookie
+6. User is redirected to dashboard
+
+**Login Flow**:
+1. User submits credentials via `SignInForm` component
+2. Client calls `authClient.signIn.email()` from Better Auth client
+3. Better Auth verifies password and creates session
+4. Session token stored in HTTP-only cookie (prevents XSS)
+5. User is redirected to dashboard
+
+**Session Management**:
+- Sessions expire after 7 days
+- Automatic session refresh every 24 hours
+- HTTP-only cookies prevent XSS attacks
+- Built-in CSRF protection
+- Server-side session verification with `auth.api.getSession()`
+
+**Protected Routes**:
+```typescript
+// API routes verify session before processing
+const session = await auth.api.getSession({ headers: request.headers });
+if (!session?.user) {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+```
+
+For detailed authentication patterns, see [Better Auth Guidelines](.kiro/steering/better-auth.md).
+
 ### Project Structure
 
 **Important**: This project does NOT use a `src/` directory. All code is in root-level folders. The TypeScript path alias `@/` maps to the project root.
@@ -219,17 +297,20 @@ pnpm run verify-setup     # Verify environment setup
 voiceflow-ai/
 ├── app/                        # Next.js 15 App Router
 │   ├── api/                    # API routes
+│   │   └── auth/               # Better Auth endpoints
 │   ├── dashboard/              # Dashboard pages
-│   └── auth/                   # Auth pages
+│   └── auth/                   # Auth pages (signin, signup)
 ├── components/                 # React components
 │   ├── ui/                     # Reusable UI components
 │   ├── audio/                  # Audio recording components
+│   ├── auth/                   # Auth UI components (SignInForm, SignUpForm)
 │   ├── notes/                  # Notes management
 │   └── layout/                 # Layout components
 ├── lib/                        # Utilities and services
+│   ├── auth.ts                 # Better Auth server instance
+│   ├── auth-client.ts          # Better Auth client instance
 │   ├── services/               # Business logic
 │   ├── db/                     # Database utilities
-│   ├── auth/                   # Authentication
 │   ├── validation/             # Input validation
 │   └── config/                 # Configuration
 ├── types/                      # TypeScript definitions
@@ -237,6 +318,7 @@ voiceflow-ai/
 ├── prisma/                     # Database schema
 ├── tests/                      # Test files
 ├── scripts/                    # Utility scripts
+│   └── migrate-existing-users.ts  # User migration script
 └── docs/                       # Documentation
 ```
 
@@ -293,6 +375,98 @@ If environment variables are not loading:
 1. Ensure `.env.local` exists in the root directory
 2. Restart the development server
 3. Run verification: `pnpm run verify-setup`
+
+## Migration Notes for Existing Installations
+
+If you're upgrading from a previous version with custom JWT authentication:
+
+### 1. Update Environment Variables
+
+**Remove old variables**:
+- `JWT_SECRET` (replaced by `BETTER_AUTH_SECRET`)
+- `NEXTAUTH_SECRET` (replaced by `BETTER_AUTH_SECRET`)
+- `NEXTAUTH_URL` (replaced by `BETTER_AUTH_URL`)
+
+**Add new variables**:
+```bash
+BETTER_AUTH_SECRET="generate_with_openssl_rand_base64_32"
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+```
+
+### 2. Run Database Migration
+
+The Better Auth migration adds new tables (Session, Account, Verification) while preserving existing user data:
+
+```bash
+# Generate Prisma client with new schema
+pnpm run db:generate
+
+# Run migration to add Better Auth tables
+pnpm run db:migrate
+```
+
+### 3. Migrate Existing Users (Optional)
+
+If you have existing users with password hashes, they will need to log in again. Better Auth will automatically re-hash their passwords using scrypt on first login.
+
+Alternatively, run the migration script to preserve sessions:
+
+```bash
+npx tsx scripts/migrate-existing-users.ts
+```
+
+This script:
+- Creates Better Auth Account records for existing users
+- Preserves user data (email, encryption keys, GDPR consent)
+- Maintains all relationships (notes, folders, tags)
+
+### 4. Update Client Code
+
+If you have custom authentication code:
+
+**Old pattern (JWT)**:
+```typescript
+// Don't use this anymore
+const token = localStorage.getItem('token');
+```
+
+**New pattern (Better Auth)**:
+```typescript
+import { authClient } from '@/lib/auth-client';
+
+// Use Better Auth hooks
+const { data: session } = authClient.useSession();
+```
+
+### 5. Verify Migration
+
+After migration, verify:
+
+1. **Authentication works**: Try signing up and logging in
+2. **Sessions persist**: Refresh the page and verify you stay logged in
+3. **Protected routes work**: Access authenticated pages
+4. **Existing data intact**: Check that notes, folders, and tags are preserved
+
+Run the verification script:
+```bash
+pnpm run verify-setup
+```
+
+### 6. Clean Up
+
+After successful migration, you can remove old authentication code:
+
+- Old JWT utility files (if any custom implementations exist)
+- Old authentication middleware
+- Unused dependencies (jsonwebtoken, bcryptjs)
+
+### Migration Support
+
+For detailed migration information, see:
+- [Better Auth Migration Spec](.kiro/specs/better-auth-migration/design.md)
+- [Better Auth Patterns](.kiro/steering/better-auth.md)
+- [Authentication Documentation](docs/AUTHENTICATION.md)
 
 ## Next Steps
 

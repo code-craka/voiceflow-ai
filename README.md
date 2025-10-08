@@ -10,13 +10,15 @@ VoiceFlow AI is a production-ready voice note-taking application that combines r
 - **Organization**: Hierarchical folders, tagging, and full-text search
 - **Security**: End-to-end encryption with AES-256-GCM and GDPR compliance
 - **Performance**: Sub-500ms API responses with 5-10x real-time transcription speed
+- **Monitoring**: Structured logging, performance metrics, and automatic alerting
 
 ## Tech Stack
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript
 - **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: Better Auth with email/password and session management
 - **AI Services**: Deepgram Nova-2, AssemblyAI (fallback), OpenAI GPT-4o
-- **Storage**: S3-compatible encrypted object storage
+- **Storage**: Appwrite Cloud Storage (Frankfurt region) with encrypted object storage
 - **Security**: Arcjet (bot detection, rate limiting, shield protection)
 - **Infrastructure**: Vercel Edge Functions, Redis caching
 
@@ -68,14 +70,17 @@ pnpm run dev
 Required environment variables (see `.env.example` for full list):
 
 - `DATABASE_URL`: PostgreSQL connection string
+- `BETTER_AUTH_SECRET`: Secret key for Better Auth (generate with `openssl rand -base64 32`)
+- `BETTER_AUTH_URL`: Base URL for Better Auth (e.g., `http://localhost:3000`)
+- `NEXT_PUBLIC_BETTER_AUTH_URL`: Public URL for Better Auth client
 - `ARCJET_KEY`: Arcjet security API key (get from https://app.arcjet.com)
 - `DEEPGRAM_API_KEY`: Primary transcription service
 - `ASSEMBLYAI_API_KEY`: Fallback transcription service
 - `OPENAI_API_KEY`: AI content processing
-- `S3_*`: Storage configuration
+- `NEXT_PUBLIC_APPWRITE_*`: Appwrite storage configuration
+- `APPWRITE_API_KEY`: Server-side Appwrite API key
 - `ENCRYPTION_KEY`: 32-character encryption key
 - `REDIS_URL`: Redis cache connection
-- `ARCJET_KEY`: Arcjet API key for security protection
 
 ## Development Commands
 
@@ -96,6 +101,10 @@ pnpm run db:migrate   # Create migration
 - [Setup Guide](docs/SETUP.md) - Complete setup instructions
 - [Configuration Reference](docs/CONFIGURATION.md) - Environment and config details
 - [Authentication & GDPR](docs/AUTHENTICATION.md) - Authentication system and GDPR compliance
+- [Testing Guide](tests/TESTING_GUIDE.md) - Comprehensive testing documentation
+- [Auth Unit Tests](docs/AUTH_UNIT_TESTS_SUMMARY.md) - Authentication service test coverage
+- [Monitoring & Alerting](docs/MONITORING_ALERTING.md) - Logging and performance monitoring
+- [Appwrite Storage](docs/APPWRITE_STORAGE.md) - Cloud storage integration guide
 - [Arcjet Security](docs/ARCJET_SECURITY.md) - API security integration guide
 - [Database Schema](prisma/README.md) - Database documentation
 - [Security Guidelines](.kiro/steering/security.md) - Security best practices
@@ -105,6 +114,9 @@ pnpm run db:migrate   # Create migration
 The application uses PostgreSQL with Prisma ORM. Key models:
 
 - **User**: User accounts with GDPR consent and encryption key management
+- **Session**: Better Auth session management with token-based authentication
+- **Account**: Better Auth account storage for credentials and OAuth providers
+- **Verification**: Better Auth email verification tokens
 - **Note**: Voice notes with transcription, AI summaries, and encrypted audio
 - **Folder**: Hierarchical folder structure for organization
 - **Tag**: User-specific tags for categorization
@@ -112,6 +124,7 @@ The application uses PostgreSQL with Prisma ORM. Key models:
 
 Features:
 - UUID primary keys with PostgreSQL `gen_random_uuid()`
+- Better Auth integration for secure authentication and session management
 - Cascade deletes for referential integrity
 - Performance indexes on frequently queried fields
 - Full support for hierarchical folders and many-to-many tagging
@@ -127,16 +140,19 @@ See `prisma/README.md` for detailed schema documentation.
 voiceflow-ai/
 ├── app/                     # Next.js App Router pages
 │   └── api/                 # API routes
-│       ├── auth/            # Authentication endpoints
+│       ├── auth/            # Better Auth endpoints
 │       └── gdpr/            # GDPR compliance endpoints
 ├── components/              # React components
+│   └── auth/                # Authentication UI components
 ├── lib/                     # Utilities and services
+│   ├── auth.ts              # Better Auth server instance
+│   ├── auth-client.ts       # Better Auth client instance
 │   └── services/            # Business logic services
 │       ├── auth.ts          # Authentication service
 │       ├── audit.ts         # Audit logging service
+│       ├── monitoring.ts    # Monitoring and logging service
 │       ├── encryption.ts    # Encryption utilities
-│       ├── gdpr.ts          # GDPR compliance service
-│       └── jwt.ts           # JWT token management
+│       └── gdpr.ts          # GDPR compliance service
 ├── types/                   # TypeScript definitions
 │   ├── auth.ts              # Authentication types
 │   ├── audio.ts             # Audio recording and processing types
@@ -153,6 +169,8 @@ voiceflow-ai/
 │   ├── CONFIGURATION.md     # Configuration reference
 │   └── AUTHENTICATION.md    # Authentication & GDPR guide
 └── .kiro/                   # Kiro AI assistant configuration
+    └── steering/            # AI assistant guidelines
+        └── better-auth.md   # Better Auth patterns and best practices
 ```
 
 ### Import Examples
@@ -174,12 +192,14 @@ import type { AudioRecordingResult } from "@/types/audio";
 
 ## Security & Compliance
 
+- **Better Auth**: Secure authentication with scrypt password hashing, HTTP-only cookies, and CSRF protection
 - **Arcjet Security**: Bot protection, rate limiting, and attack prevention on all API routes
 - End-to-end encryption with AES-256-GCM
 - GDPR-compliant data handling
 - User-controlled encryption keys
 - Comprehensive audit logging
 - TLS 1.3 for all communications
+- **Session Management**: 7-day session expiry with automatic refresh
 - **Arcjet Protection**:
   - Bot detection and blocking (allows search engines)
   - Token bucket rate limiting (5 tokens/10s, capacity: 10)

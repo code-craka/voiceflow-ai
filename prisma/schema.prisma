@@ -16,20 +16,79 @@ datasource db {
 
 model User {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String   @db.VarChar(255)
   email             String   @unique @db.VarChar(255)
-  passwordHash      String   @map("password_hash") @db.VarChar(255)
-  encryptionKeyHash String   @map("encryption_key_hash") @db.VarChar(255)
-  gdprConsent       Json     @map("gdpr_consent")
+  emailVerified     Boolean  @default(false) @map("email_verified")
+  image             String?  @db.Text
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Custom fields (preserved from old schema)
+  // Note: passwordHash removed - passwords now stored in Account.password via Better Auth
+  encryptionKeyHash String   @map("encryption_key_hash") @db.VarChar(255)
+  gdprConsent       Json     @map("gdpr_consent") // { dataProcessing, marketing, analytics, consentedAt, ipAddress }
 
-  // Relations
-  notes     Note[]
-  folders   Folder[]
-  tags      Tag[]
-  auditLogs AuditLog[]
+  // Better Auth relations
+  sessions          Session[]
+  accounts          Account[]
+  
+  // Existing relations
+  notes             Note[]
+  folders           Folder[]
+  tags              Tag[]
+  auditLogs         AuditLog[]
 
   @@map("users")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  token     String   @unique @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.Text
+  userId    String   @map("user_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId                String    @map("account_id") @db.VarChar(255)
+  providerId               String    @map("provider_id") @db.VarChar(255)
+  userId                   String    @map("user_id") @db.Uuid
+  accessToken              String?   @map("access_token") @db.Text
+  refreshToken             String?   @map("refresh_token") @db.Text
+  idToken                  String?   @map("id_token") @db.Text
+  accessTokenExpiresAt     DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt    DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                    String?   @db.Text
+  password                 String?   @db.Text
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([identifier, value])
+  @@map("verification")
 }
 
 model Note {

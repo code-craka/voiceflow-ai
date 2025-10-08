@@ -3,7 +3,8 @@
  * Handles audio transcription requests with automatic fallback
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { ajAI, handleArcjetDecision } from "@/lib/arcjet";
 import { transcriptionPipeline } from "@/lib/services/transcriptionPipeline";
 import { z } from "zod";
@@ -11,7 +12,6 @@ import { z } from "zod";
 // Validation schema
 const transcriptionRequestSchema = z.object({
   noteId: z.string().uuid(),
-  userId: z.string().uuid(),
   audioData: z.string(), // Base64 encoded audio
   options: z
     .object({
@@ -26,20 +26,35 @@ const transcriptionRequestSchema = z.object({
  * POST /api/transcription
  * Submit audio for transcription
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   // 1. Arcjet protection (AI endpoint with cost of 2 tokens)
   const decision = await ajAI.protect(request, { requested: 2 });
   const errorResponse = handleArcjetDecision(decision);
   if (errorResponse) return errorResponse;
 
+  // 2. Better Auth session verification
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // Extract userId from session
+  const userId = session.user.id;
+
   try {
-    // 2. Parse and validate request body
+    // 3. Parse and validate request body
     const body = await request.json();
     const validatedData = transcriptionRequestSchema.parse(body);
 
-    const { noteId, userId, audioData, options } = validatedData;
+    const { noteId, audioData, options } = validatedData;
 
-    // 3. Decode base64 audio data
+    // 4. Decode base64 audio data
     const audioBuffer = Buffer.from(audioData, "base64");
 
     if (audioBuffer.length === 0) {
@@ -49,7 +64,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Submit transcription job
+    // 5. Submit transcription job
     const jobId = await transcriptionPipeline.submitTranscription(
       noteId,
       userId,
@@ -57,7 +72,7 @@ export async function POST(request: Request) {
       options || undefined
     );
 
-    // 5. Return job ID for status tracking
+    // 6. Return job ID for status tracking
     return NextResponse.json({
       success: true,
       jobId,
@@ -90,14 +105,26 @@ export async function POST(request: Request) {
  * GET /api/transcription?jobId=xxx
  * Get transcription job status
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   // 1. Arcjet protection
   const decision = await ajAI.protect(request, { requested: 1 });
   const errorResponse = handleArcjetDecision(decision);
   if (errorResponse) return errorResponse;
 
+  // 2. Better Auth session verification
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   try {
-    // 2. Get job ID from query params
+    // 3. Get job ID from query params
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get("jobId");
 
@@ -108,7 +135,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // 3. Get job status
+    // 4. Get job status
     const status = transcriptionPipeline.getJobStatus(jobId);
 
     if (!status) {
@@ -118,7 +145,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // 4. Return job status
+    // 5. Return job status
     return NextResponse.json({
       jobId,
       status,

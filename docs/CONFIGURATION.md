@@ -17,9 +17,41 @@ This document provides an overview of the project configuration and setup.
 - CORS headers configured for API routes
 - Image domains configuration ready
 
+### Better Auth Configuration
+
+**Server Instance**: `lib/auth.ts`
+**Client Instance**: `lib/auth-client.ts`
+**API Routes**: `app/api/auth/[...all]/route.ts`
+
+Better Auth provides comprehensive authentication:
+
+1. **Email/Password Authentication**:
+   - Password hashing with scrypt (OWASP recommended)
+   - Minimum 8 characters (configurable)
+   - Automatic session creation on registration
+
+2. **Session Management**:
+   - HTTP-only cookies (prevents XSS)
+   - 7-day expiry with automatic refresh every 24 hours
+   - Encrypted session tokens
+   - Built-in CSRF protection
+
+3. **Database Integration**:
+   - Prisma adapter for PostgreSQL
+   - Core tables: User, Session, Account, Verification
+   - Custom fields preserved (encryptionKeyHash, gdprConsent)
+
+**Configuration**: Set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `NEXT_PUBLIC_BETTER_AUTH_URL` in environment variables
+
+**Key Features**:
+- Type-safe session and user types
+- Extensible plugin system
+- Framework-agnostic design
+- Full TypeScript support
+
 ### Arcjet Security Configuration
 
-**Location**: `app/api/arcjet/route.ts`
+**Location**: `lib/arcjet.ts`
 
 Arcjet provides multi-layered security protection:
 
@@ -29,15 +61,23 @@ Arcjet provides multi-layered security protection:
    - Allows search engines (Google, Bing, etc.)
    - Detects hosting IPs and spoofed bots
 3. **Rate Limiting**: Token bucket algorithm
-   - Refill rate: 5 tokens per 10 seconds
-   - Capacity: 10 tokens
+   - Different configurations for different endpoint types
    - Tracked by IP address
+
+**Arcjet Configurations**:
+- `aj` - Basic shield only (health checks)
+- `ajPublicAPI` - Public endpoints (20 req/min)
+- `ajAuthAPI` - Authenticated endpoints (100 req/min)
+- `ajSensitive` - Auth/payment operations (5 req/min)
+- `ajAI` - AI/transcription endpoints (10 req/min)
 
 **Response Codes**:
 - `429`: Rate limit exceeded
 - `403`: Bot detected, hosting IP, or shield violation
 
 **Configuration**: Set `ARCJET_KEY` in environment variables
+
+**Integration with Better Auth**: Arcjet protection is applied BEFORE Better Auth session verification in all API routes
 
 ### TypeScript Configuration
 
@@ -192,20 +232,25 @@ Database provider: PostgreSQL with direct connection support
 - `ASSEMBLYAI_API_KEY`: Fallback transcription service
 - `OPENAI_API_KEY`: AI content processing (GPT-4o)
 
-#### Storage (S3-Compatible)
+#### Storage (Appwrite Cloud)
 
-- `S3_BUCKET_NAME`: Bucket for audio files
-- `S3_ACCESS_KEY_ID`: S3 access key
-- `S3_SECRET_ACCESS_KEY`: S3 secret key
-- `S3_REGION`: AWS region
-- `S3_ENDPOINT`: S3 endpoint URL
+- `NEXT_PUBLIC_APPWRITE_ENDPOINT`: Appwrite API endpoint (e.g., `https://fra.cloud.appwrite.io/v1`)
+- `NEXT_PUBLIC_APPWRITE_PROJECT_ID`: Appwrite project ID
+- `APPWRITE_API_KEY`: Server-side API key with Storage permissions
+
+**Storage Configuration**:
+- Bucket ID: `68e5eb26002366989566` (voiceflow-ai bucket)
+- Region: Frankfurt (fra.cloud.appwrite.io)
+- Max file size: 100MB
+- Supported formats: WebM, Opus, OGG, WAV, MP3, MPEG
+- Chunk size: 5MB for large file uploads
 
 #### Security
 
 - `ENCRYPTION_KEY`: 32-character key for AES-256-GCM
-- `JWT_SECRET`: JWT signing secret
-- `NEXTAUTH_SECRET`: NextAuth.js secret
-- `NEXTAUTH_URL`: Application URL
+- `BETTER_AUTH_SECRET`: Better Auth secret key (generate with: `openssl rand -base64 32`)
+- `BETTER_AUTH_URL`: Application URL for Better Auth (e.g., `http://localhost:3000` or `https://yourdomain.com`)
+- `NEXT_PUBLIC_BETTER_AUTH_URL`: Public application URL for Better Auth client
 - `ARCJET_KEY`: Arcjet API key for bot detection, rate limiting, and shield protection
 
 #### Infrastructure
@@ -267,10 +312,10 @@ Database provider: PostgreSQL with direct connection support
 - `aws-sdk`: ^2.1519.0 (S3 storage)
 - `redis`: ^4.6.12 (caching)
 
-### Security
+### Authentication & Security
 
-- `bcryptjs`: ^2.4.3 (password hashing)
-- `jsonwebtoken`: ^9.0.2 (JWT tokens)
+- `better-auth`: Latest (authentication framework)
+- `@arcjet/next`: ^1.0.0-beta.13 (security protection)
 
 ### Styling
 
@@ -323,25 +368,30 @@ The project uses comprehensive TypeScript types for type safety and developer ex
 
 ### Authentication Types
 
-The project uses strongly-typed interfaces for authentication and user management, defined in `types/auth.ts`:
+The project uses **Better Auth** for authentication with strongly-typed interfaces defined in `types/auth.ts`:
 
-**Core Types:**
-- `User` - User account with GDPR consent and encryption key
+**Better Auth Types:**
+- `Session` - Better Auth session type (imported from `@/lib/auth`)
+- `User` - Better Auth user with custom fields (encryptionKeyHash, gdprConsent)
+
+**Custom Types:**
 - `GDPRConsent` - Structured consent tracking
+- `UserWithCustomFields` - User with VoiceFlow AI custom fields
 - `UserWithEncryptionKey` - User with decrypted encryption key
 
 **Request Types:**
 - `UserRegistrationRequest` - Registration payload
 - `UserLoginRequest` - Login credentials
 
-**Session Types:**
-- `AuthSession` - Active user session
-- `AuthToken` - JWT token with expiry
-
 **Usage Example:**
 ```typescript
+import type { Session } from '@/lib/auth';
 import type { UserRegistrationRequest, GDPRConsent } from '@/types/auth';
 
+// Better Auth session
+const session: Session = await auth.api.getSession({ headers });
+
+// Registration request
 const request: UserRegistrationRequest = {
   email: 'user@example.com',
   password: 'SecurePass123!',
@@ -438,6 +488,65 @@ if (result.speakers) {
 
 API response types are defined in `types/api.ts` for consistent error handling and response formatting.
 
+## Monitoring and Logging
+
+### Monitoring Service
+
+**Location**: `lib/services/monitoring.ts`
+
+The monitoring service provides structured logging, performance metrics tracking, and security event monitoring.
+
+**Key Features:**
+- Structured JSON logging with context
+- Performance metrics (API response time, transcription speed, AI processing, database queries)
+- Security event logging with severity levels
+- Automatic alerting for slow requests and queries
+- Metrics aggregation (P95, averages, error rates)
+- Memory-managed buffers (1,000 metrics, 500 security events)
+
+**Usage Example:**
+```typescript
+import { monitoringService, LogLevel, withMonitoring } from '@/lib/services/monitoring';
+
+// Structured logging
+monitoringService.log(LogLevel.INFO, 'User action completed', {
+  userId: user.id,
+  action: 'note_created',
+});
+
+// Error logging with stack trace
+monitoringService.logError('Processing failed', error, { userId });
+
+// Track API performance
+monitoringService.trackAPIResponseTime('/api/notes', 'POST', duration, 200);
+
+// Wrap API handler with monitoring
+return withMonitoring(
+  async () => {
+    // Your API logic
+  },
+  { endpoint: '/api/notes', method: 'POST', userId }
+);
+```
+
+**Metric Types:**
+- `API_RESPONSE_TIME` - Target: P95 < 500ms
+- `TRANSCRIPTION_TIME` - Target: 5-10x real-time
+- `AI_PROCESSING_TIME` - Varies by model
+- `DATABASE_QUERY_TIME` - Target: < 100ms
+- `CACHE_HIT_RATE` - Target: > 90%
+- `ERROR_RATE` - Target: < 1%
+- `ACTIVE_USERS` - Tracking
+- `COST_PER_USER` - Target: ≤ $0.31/month
+
+**Automatic Alerts:**
+- Slow API requests (> 500ms)
+- Slow database queries (> 100ms)
+- Slow transcription (< 5x real-time)
+- Critical security events
+
+See `docs/MONITORING_ALERTING.md` for detailed usage patterns and best practices.
+
 ## Verification
 
 Run the setup verification script to ensure all configuration is correct:
@@ -451,8 +560,43 @@ This checks:
 - Node.js version (22.15.0+)
 - pnpm version (10.17.1+)
 - Required configuration files
-- Environment variables
+- Environment variables (including Better Auth variables)
 - Prisma client generation
+- Database connection
+
+## Migration Notes
+
+### Better Auth Migration
+
+VoiceFlow AI has migrated from a custom JWT-based authentication system to **Better Auth**. If you're working with an older version of the codebase:
+
+**Removed Dependencies**:
+- `jsonwebtoken` - Replaced by Better Auth's session management
+- `bcryptjs` - Replaced by Better Auth's scrypt password hashing
+- `@types/jsonwebtoken` and `@types/bcryptjs` - No longer needed
+
+**Removed Environment Variables**:
+- `JWT_SECRET` - Replaced by `BETTER_AUTH_SECRET`
+- `NEXTAUTH_SECRET` - Replaced by `BETTER_AUTH_SECRET`
+- `NEXTAUTH_URL` - Replaced by `BETTER_AUTH_URL`
+
+**New Environment Variables**:
+- `BETTER_AUTH_SECRET` - Secret key for Better Auth (generate with: `openssl rand -base64 32`)
+- `BETTER_AUTH_URL` - Application URL for Better Auth server
+- `NEXT_PUBLIC_BETTER_AUTH_URL` - Public URL for Better Auth client
+
+**Database Changes**:
+- Added Better Auth core tables: `session`, `account`, `verification`
+- Updated `user` table with Better Auth required fields
+- Removed `passwordHash` from `user` table (now in `account.password`)
+- Preserved custom fields: `encryptionKeyHash`, `gdprConsent`
+
+**API Changes**:
+- Removed `/api/auth/register` and `/api/auth/login` endpoints
+- Added catch-all route: `/api/auth/[...all]` (handles all Better Auth endpoints)
+- All protected routes now use `auth.api.getSession()` instead of JWT verification
+
+For detailed migration information, see [AUTHENTICATION.md](./AUTHENTICATION.md)
 
 ## Next Steps
 

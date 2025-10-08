@@ -19,9 +19,9 @@ const envSchema = z.object({
 
   // Security
   ENCRYPTION_KEY: z.string().min(32),
-  JWT_SECRET: z.string().min(1),
-  NEXTAUTH_SECRET: z.string().min(1),
-  NEXTAUTH_URL: z.string().url(),
+  BETTER_AUTH_SECRET: z.string().min(1),
+  BETTER_AUTH_URL: z.string().url(),
+  NEXT_PUBLIC_BETTER_AUTH_URL: z.string().url().optional(),
 
   // Redis
   REDIS_URL: z.string().url(),

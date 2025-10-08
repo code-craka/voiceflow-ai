@@ -1,19 +1,17 @@
 /**
  * Authentication Service
- * Handles user registration, login, and session management
+ * Handles user registration with Better Auth integration
  * Requirements: 5.3, 6.1
  */
 
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import {
     generateEncryptionKey,
     hashEncryptionKey,
-    hashPassword,
-    verifyPassword,
 } from './encryption';
 import type {
     UserRegistrationRequest,
-    UserLoginRequest,
     UserWithEncryptionKey,
     GDPRConsent,
 } from '@/types/auth';
@@ -31,32 +29,33 @@ export class AuthenticationError extends Error {
 
 /**
  * Register a new user with encryption key generation
+ * Uses Better Auth for user creation and password management
  */
 export async function registerUser(
     request: UserRegistrationRequest,
     ipAddress?: string
 ): Promise<UserWithEncryptionKey> {
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-        where: { email: request.email },
-    });
-
-    if (existingUser) {
-        throw new AuthenticationError('User already exists', 'USER_EXISTS');
-    }
-
     // Generate encryption key for user
     const encryptionKey = generateEncryptionKey();
     const encryptionKeyHash = hashEncryptionKey(encryptionKey);
 
-    // Hash password
-    const passwordHash = await hashPassword(request.password);
-
-    // Create user with GDPR consent
-    const user = await prisma.user.create({
-        data: {
+    // Create user with Better Auth
+    const result = await auth.api.signUpEmail({
+        body: {
             email: request.email,
-            passwordHash,
+            password: request.password,
+            name: request.email.split('@')[0],
+        },
+    });
+
+    if (!result.data?.user) {
+        throw new AuthenticationError('Failed to create user', 'USER_CREATION_FAILED');
+    }
+
+    // Update user with custom fields
+    const user = await prisma.user.update({
+        where: { id: result.data.user.id },
+        data: {
             encryptionKeyHash,
             gdprConsent: {
                 ...request.gdprConsent,
@@ -82,6 +81,9 @@ export async function registerUser(
     return {
         id: user.id,
         email: user.email,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        image: user.image || undefined,
         encryptionKeyHash: user.encryptionKeyHash,
         gdprConsent: user.gdprConsent as unknown as GDPRConsent,
         createdAt: user.createdAt,
@@ -91,47 +93,15 @@ export async function registerUser(
 }
 
 /**
- * Authenticate user and return session
+ * Get session from request headers (server-side)
+ * Used in API routes to verify authentication
  */
-export async function loginUser(
-    request: UserLoginRequest,
-    ipAddress?: string
-): Promise<UserWithEncryptionKey> {
-    const user = await prisma.user.findUnique({
-        where: { email: request.email },
+export async function getServerSession(headers: Headers) {
+    const session = await auth.api.getSession({
+        headers,
     });
 
-    if (!user) {
-        throw new AuthenticationError('Invalid credentials', 'INVALID_CREDENTIALS');
-    }
-
-    // Verify password
-    const isValidPassword = await verifyPassword(request.password, user.passwordHash);
-    if (!isValidPassword) {
-        throw new AuthenticationError('Invalid credentials', 'INVALID_CREDENTIALS');
-    }
-
-    await createAuditLog({
-        userId: user.id,
-        action: 'USER_LOGIN',
-        resourceType: 'user',
-        resourceId: user.id,
-        details: { email: user.email },
-        ipAddress: ipAddress || undefined,
-    });
-
-    // Derive encryption key from password (simplified - in production use KDF)
-    const encryptionKey = generateEncryptionKey();
-
-    return {
-        id: user.id,
-        email: user.email,
-        encryptionKeyHash: user.encryptionKeyHash,
-        gdprConsent: user.gdprConsent as unknown as GDPRConsent,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        encryptionKey,
-    };
+    return session;
 }
 
 /**

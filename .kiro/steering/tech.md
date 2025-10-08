@@ -16,7 +16,7 @@ inclusion: always
 
 - PostgreSQL with Prisma ORM (no raw SQL queries)
 - Redis for caching AI responses
-- S3-compatible storage with AES-256-GCM encryption
+- Appwrite Cloud Storage with automatic encryption at rest
 
 ### Authentication & Security
 

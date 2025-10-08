@@ -5,27 +5,34 @@
  * Requirements: 6.1
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { ajAuthAPI, handleArcjetDecision } from '@/lib/arcjet';
-import { getUserIdFromRequest } from '@/lib/services/jwt';
 import { getUserConsent, updateUserConsent } from '@/lib/services/gdpr';
 import { updateConsentSchema } from '@/lib/validation/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   // 1. Arcjet security protection
   const decision = await ajAuthAPI.protect(request, { requested: 1 });
   const errorResponse = handleArcjetDecision(decision);
   if (errorResponse) return errorResponse;
 
+  // 2. Better Auth session verification
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  if (!session?.user) {
+    return NextResponse.json({
+      error: 'UNAUTHORIZED',
+      message: 'Authentication required',
+    }, { status: 401 });
+  }
+
+  // Extract userId from session
+  const userId = session.user.id;
+
   try {
-    // 2. Authenticate user
-    const userId = getUserIdFromRequest(request);
-    if (!userId) {
-      return NextResponse.json({
-        error: 'UNAUTHORIZED',
-        message: 'Authentication required',
-      }, { status: 401 });
-    }
 
     // 3. Get consent status
     const consent = await getUserConsent(userId);
@@ -45,21 +52,28 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   // 1. Arcjet security protection
   const decision = await ajAuthAPI.protect(request, { requested: 1 });
   const errorResponse = handleArcjetDecision(decision);
   if (errorResponse) return errorResponse;
 
+  // 2. Better Auth session verification
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  if (!session?.user) {
+    return NextResponse.json({
+      error: 'UNAUTHORIZED',
+      message: 'Authentication required',
+    }, { status: 401 });
+  }
+
+  // Extract userId from session
+  const userId = session.user.id;
+
   try {
-    // 2. Authenticate user
-    const userId = getUserIdFromRequest(request);
-    if (!userId) {
-      return NextResponse.json({
-        error: 'UNAUTHORIZED',
-        message: 'Authentication required',
-      }, { status: 401 });
-    }
 
     // 3. Parse and validate input
     const body = await request.json();

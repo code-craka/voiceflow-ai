@@ -45,3 +45,16 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+mcp.json
+
+.amazonq/mcp.json
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+.env.development
+.env.test
+.env.production
+.env

@@ -1,23 +1,27 @@
 {
   "enabled": true,
   "name": "Source to Docs Sync",
-  "description": "Monitors all TypeScript source files, configuration files, and schema files for changes and triggers documentation updates in README.md or docs/ folder",
+  "description": "Monitors all TypeScript source files, configuration files, and schema files for changes. When changes are detected, prompts the agent to review and update relevant documentation in README.md or the /docs folder to keep documentation in sync with code changes.",
   "version": "1",
   "when": {
     "type": "fileEdited",
     "patterns": [
-      "src/**/*.ts",
-      "src/**/*.tsx",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
       "prisma/schema.prisma",
       "package.json",
       "tsconfig.json",
       "next.config.ts",
+      "eslint.config.js",
       "vitest.config.ts",
-      "tailwind.config.ts"
+      "components.json",
+      ".env.example"
     ]
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Source files have been modified. Please review the changes and update the documentation accordingly. If the changes affect API routes, services, components, or database schema, update the relevant sections in README.md. If there is a docs/ folder with specific documentation files (like SETUP.md), update those as well to reflect the new changes. Ensure that any new features, configuration changes, or architectural updates are properly documented."
+    "prompt": "Source code files have been modified. Please review the changes and update the relevant documentation:\n\n1. Analyze what changed in the source files\n2. Determine which documentation needs updating:\n   - If it's a general feature or setup change, update README.md\n   - If it's specific technical documentation, update the appropriate file in /docs folder\n3. Update the documentation to reflect:\n   - New features or functionality\n   - Changed APIs or interfaces\n   - Updated configuration requirements\n   - Modified setup or installation steps\n   - New dependencies or environment variables\n4. Ensure documentation remains accurate, clear, and helpful for developers\n\nFocus on keeping documentation synchronized with the actual implementation."
   }
 }

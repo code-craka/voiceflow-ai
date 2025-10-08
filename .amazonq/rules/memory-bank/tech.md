@@ -39,9 +39,12 @@
 - **Better Auth**: Modern authentication library
 
 ## Storage & Infrastructure
-- **S3-Compatible Storage**: Encrypted object storage for audio files
+- **Appwrite Cloud Storage**: Encrypted object storage for audio files (Frankfurt region)
+  - Bucket ID: 68e5eb26002366989566
+  - Max file size: 100MB
+  - Supported formats: WebM, Opus, OGG, WAV, MP3, MPEG
+  - Chunked uploads: 5MB chunks for large files
 - **Vercel Edge Functions**: Global performance optimization
-- **AWS SDK**: Cloud storage integration
 - **Redis**: Distributed caching and session storage
 
 ## Development Tools & Build System
@@ -110,7 +113,9 @@ pnpm run verify-setup # Verify environment setup
   - `OPENAI_API_KEY`: AI content processing
   - `ENCRYPTION_KEY`: 32-character encryption key
   - `REDIS_URL`: Cache connection string
-  - `S3_*`: Storage configuration variables
+  - `NEXT_PUBLIC_APPWRITE_ENDPOINT`: Appwrite API endpoint
+  - `NEXT_PUBLIC_APPWRITE_PROJECT_ID`: Appwrite project ID
+  - `APPWRITE_API_KEY`: Server-side API key with Storage permissions
 
 ## Performance Targets
 - **Time to First Byte**: <200ms

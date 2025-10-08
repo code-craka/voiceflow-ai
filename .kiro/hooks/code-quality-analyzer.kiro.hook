@@ -1,21 +1,25 @@
 {
   "enabled": true,
   "name": "Code Quality Analyzer",
-  "description": "Monitors source code files for changes and provides suggestions for code quality improvements, including identifying code smells, recommending design patterns, and ensuring adherence to best practices for readability, maintainability, and performance.",
+  "description": "Monitors source code files for changes and provides suggestions for code quality improvements, including identifying code smells, recommending design patterns, and highlighting best practices for readability, maintainability, and performance",
   "version": "1",
   "when": {
     "type": "fileEdited",
     "patterns": [
-      "src/**/*.ts",
-      "src/**/*.tsx",
-      "src/**/*.js",
-      "src/**/*.jsx",
-      "prisma/**/*.prisma",
-      "scripts/**/*.ts"
+      "app/**/*.{ts",
+      "tsx}",
+      "components/**/*.{ts",
+      "tsx}",
+      "lib/**/*.{ts",
+      "tsx}",
+      "hooks/**/*.{ts",
+      "tsx}",
+      "types/**/*.ts",
+      "prisma/schema.prisma"
     ]
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Analyze the modified code files for potential improvements. Focus on:\n\n1. **Code Smells**: Identify any code smells such as duplicated code, long functions, large classes, excessive parameters, or inappropriate coupling.\n\n2. **Design Patterns**: Suggest appropriate design patterns that could improve the code structure (e.g., Factory, Strategy, Repository, Dependency Injection).\n\n3. **Best Practices**: Ensure adherence to:\n   - TypeScript strict mode and proper typing (no `any` types)\n   - Service layer pattern for business logic\n   - Proper error handling with typed errors and fallback mechanisms\n   - Security best practices (input validation, encryption, parameterized queries)\n   - Performance optimizations (caching, indexing, efficient queries)\n\n4. **Readability**: Check for clear naming conventions, proper code organization, adequate comments for complex logic, and consistent formatting.\n\n5. **Maintainability**: Look for opportunities to reduce complexity, improve modularity, enhance testability, and follow SOLID principles.\n\n6. **Performance**: Identify potential bottlenecks, unnecessary computations, inefficient algorithms, or missing optimizations.\n\nProvide specific, actionable suggestions with code examples where appropriate. Ensure all recommendations maintain existing functionality and align with the project's technical guidelines (Next.js 15, React 19, TypeScript strict mode, Prisma ORM, service layer pattern)."
+    "prompt": "Analyze the modified code files for potential improvements. Focus on:\n\n1. **Code Smells**: Identify any code smells such as duplicated code, long functions, large classes, excessive parameters, or complex conditionals\n2. **Design Patterns**: Suggest appropriate design patterns that could improve the code structure (e.g., Factory, Strategy, Repository, Observer)\n3. **Best Practices**: Check adherence to project standards including:\n   - TypeScript strict mode compliance (no `any` types)\n   - Proper error handling with fallback mechanisms\n   - Correct API route structure (Arcjet → Better Auth → validation → business logic)\n   - Service layer patterns and dependency injection\n   - Proper import organization and path aliases\n4. **Readability**: Suggest improvements for code clarity, naming conventions, and documentation\n5. **Maintainability**: Identify areas that could be refactored for easier maintenance and testing\n6. **Performance**: Highlight potential performance optimizations such as:\n   - Database query optimization and proper indexing\n   - Caching opportunities\n   - Unnecessary re-renders or computations\n   - Memory leaks or resource management issues\n\nFor each suggestion:\n- Explain WHY the change would be beneficial\n- Provide a concrete code example showing the improvement\n- Prioritize suggestions (critical, recommended, optional)\n- Ensure suggestions align with the project's tech stack (Next.js 15, React 19, Better Auth, Prisma, Arcjet)\n\nMaintain the existing functionality while improving code quality."
   }
 }

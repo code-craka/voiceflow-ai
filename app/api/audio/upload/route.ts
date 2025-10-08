@@ -4,28 +4,49 @@
  * Requirements: 1.4, 5.1, 5.3
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { ajAI, handleArcjetDecision } from '@/lib/arcjet';
 import { validateAudioBuffer, encryptAudio } from '@/lib/services/audio';
 import { prisma } from '@/lib/db';
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     // 1. Arcjet security protection for AI/audio endpoints
     const decision = await ajAI.protect(request, { requested: 2 });
     const errorResponse = handleArcjetDecision(decision);
     if (errorResponse) return errorResponse;
 
-    // 2. Parse form data
+    // 2. Better Auth session verification
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session?.user) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'You must be logged in to upload audio',
+            retryable: false,
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    // Extract userId from session
+    const userId = session.user.id;
+
+    // 3. Parse form data
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
-    const userId = formData.get('userId') as string;
     const userEncryptionKey = formData.get('encryptionKey') as string;
     const title = formData.get('title') as string | null;
     const folderId = formData.get('folderId') as string | null;
     const duration = parseInt(formData.get('duration') as string) || 0;
 
-    // 3. Validate required fields
+    // 4. Validate required fields
     if (!audioFile) {
       return NextResponse.json(
         {
@@ -39,24 +60,24 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    if (!userId || !userEncryptionKey) {
+    if (!userEncryptionKey) {
       return NextResponse.json(
         {
           error: {
-            code: 'MISSING_CREDENTIALS',
-            message: 'User credentials are required',
+            code: 'MISSING_ENCRYPTION_KEY',
+            message: 'Encryption key is required',
             retryable: false,
           },
         },
-        { status: 401 }
+        { status: 400 }
       );
     }
 
-    // 4. Convert file to buffer
+    // 5. Convert file to buffer
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = Buffer.from(arrayBuffer);
 
-    // 5. Validate audio format
+    // 6. Validate audio format
     const validation = validateAudioBuffer(audioBuffer, audioFile.type);
     if (!validation.valid) {
       return NextResponse.json(
@@ -71,7 +92,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // 6. Encrypt audio data
+    // 7. Encrypt audio data
     let encryptedData;
     try {
       const blob = new Blob([audioBuffer], { type: audioFile.type });
@@ -91,10 +112,10 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // 7. Generate audio ID
+    // 8. Generate audio ID
     const audioId = `audio_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
-    // 8. Store encrypted audio metadata in database
+    // 9. Store encrypted audio metadata in database
     // TODO: Upload encrypted data to S3-compatible storage
     // For now, we'll store metadata only
     try {
@@ -123,7 +144,7 @@ export async function POST(request: Request): Promise<Response> {
         },
       });
 
-      // 9. Return success response
+      // 10. Return success response
       return NextResponse.json({
         success: true,
         data: {
