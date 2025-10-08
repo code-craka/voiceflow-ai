@@ -35,7 +35,7 @@ export function AudioRecorderWithUpload({
         userId,
         encryptionKey,
         duration,
-        folderId,
+        ...(folderId && { folderId }),
         title: `Voice Note ${new Date().toLocaleString()}`,
         onProgress: (progress) => {
           setUploadProgress(progress);

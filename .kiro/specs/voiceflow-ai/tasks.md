@@ -54,24 +54,30 @@
     - Test error handling for upload failures
     - _Requirements: 1.4, 5.1_
 
-- [ ] 5. Implement transcription service with fallback
-  - [ ] 5.1 Create Deepgram integration service
+- [x] 5. Implement transcription service with fallback
+  - [x] 5.1 Create Deepgram integration service
     - Build primary transcription service using Deepgram Nova-2
     - Implement real-time streaming transcription
     - Add speaker diarization support
     - Include confidence scoring and processing time tracking
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
-  - [ ] 5.2 Add AssemblyAI fallback transcription
+  - [x] 5.2 Add AssemblyAI fallback transcription
     - Implement secondary transcription provider
     - Create automatic fallback logic on Deepgram failures
     - Add retry mechanisms with exponential backoff
     - _Requirements: 2.4_
-  - [ ] 5.3 Build transcription processing pipeline
+  - [x] 5.3 Build transcription processing pipeline
     - Create job queue for audio processing
     - Implement parallel processing for performance
     - Add transcription result storage and retrieval
     - _Requirements: 2.1, 7.3_
-  - [ ]\* 5.4 Write integration tests for transcription services
+  - [x] 5.4 Define TypeScript types for transcription
+    - Created comprehensive type definitions in `src/types/transcription.ts`
+    - Includes TranscriptionResult, TranscriptionOptions, SpeakerSegment
+    - Includes TranscriptionChunk for streaming, TranscriptionError for error handling
+    - Updated documentation in CONFIGURATION.md and TRANSCRIPTION.md
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [ ]\* 5.5 Write integration tests for transcription services
     - Test primary and fallback provider switching
     - Validate transcription accuracy and performance
     - Test error handling and retry logic

@@ -17,7 +17,7 @@ export function AudioRecorder({
   const { state, startRecording, stopRecording, pauseRecording, resumeRecording } =
     useAudioRecorder({
       onRecordingComplete,
-      onError,
+      ...(onError && { onError }),
       maxDuration,
     });
 

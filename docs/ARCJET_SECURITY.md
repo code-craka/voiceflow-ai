@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
 ## Available Configurations
 
-We provide 5 pre-configured Arcjet instances in `src/lib/arcjet.ts`:
+We provide 5 pre-configured Arcjet instances in `lib/arcjet.ts`:
 
 ### 1. `aj` - Base Protection
 **Use for:** Health checks, static content, non-sensitive endpoints
@@ -185,7 +185,7 @@ export async function POST(req: Request) {
 ### Example 1: Audio Upload Endpoint
 
 ```typescript
-// src/app/api/audio/upload/route.ts
+// app/api/audio/upload/route.ts
 import { ajAI, handleArcjetDecision } from "@/lib/arcjet";
 import { z } from "zod";
 
@@ -221,7 +221,7 @@ export async function POST(req: Request) {
 ### Example 2: Login Endpoint
 
 ```typescript
-// src/app/api/auth/login/route.ts
+// app/api/auth/login/route.ts
 import { ajSensitive, handleArcjetDecision } from "@/lib/arcjet";
 import { z } from "zod";
 
@@ -254,7 +254,7 @@ export async function POST(req: Request) {
 ### Example 3: Notes List Endpoint
 
 ```typescript
-// src/app/api/notes/route.ts
+// app/api/notes/route.ts
 import { ajAuthAPI, handleArcjetDecision } from "@/lib/arcjet";
 
 export async function GET(req: Request) {
@@ -340,7 +340,7 @@ console.log("Arcjet decision:", {
 
 If users are hitting rate limits too often:
 
-1. Increase capacity or refill rate in `src/lib/arcjet.ts`
+1. Increase capacity or refill rate in `lib/arcjet.ts`
 2. Adjust token costs for specific operations
 3. Consider using different configurations for different user tiers
 

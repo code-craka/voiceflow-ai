@@ -150,7 +150,8 @@ export async function uploadAudio(
   audioBlob: Blob,
   options: AudioUploadOptions
 ): Promise<AudioUploadResult> {
-  const { userId, userEncryptionKey, metadata } = options;
+  const { userEncryptionKey } = options;
+  // userId and metadata will be used when S3 storage is implemented
 
   // Validate audio file
   const validation = validateAudioFile(audioBlob);
@@ -159,7 +160,7 @@ export async function uploadAudio(
   }
 
   // Encrypt audio data
-  const encryptedData = await encryptAudio(audioBlob, userEncryptionKey);
+  await encryptAudio(audioBlob, userEncryptionKey);
 
   // Generate audio ID
   const audioId = generateAudioId();

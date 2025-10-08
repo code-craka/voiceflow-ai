@@ -121,26 +121,27 @@ See `prisma/README.md` for detailed schema documentation.
 
 ## Project Structure
 
+**Note**: This project does NOT use a `src/` directory. All application code is in root-level folders. The TypeScript path alias `@/` maps to the project root.
+
 ```
 voiceflow-ai/
-├── src/
-│   ├── app/                 # Next.js App Router pages
-│   │   └── api/             # API routes
-│   │       ├── auth/        # Authentication endpoints
-│   │       └── gdpr/        # GDPR compliance endpoints
-│   ├── components/          # React components
-│   ├── lib/                 # Utilities and services
-│   │   └── services/        # Business logic services
-│   │       ├── auth.ts      # Authentication service
-│   │       ├── audit.ts     # Audit logging service
-│   │       ├── encryption.ts # Encryption utilities
-│   │       ├── gdpr.ts      # GDPR compliance service
-│   │       └── jwt.ts       # JWT token management
-│   ├── types/               # TypeScript definitions
-│   │   ├── auth.ts          # Authentication types
-│   │   ├── audio.ts         # Audio recording and processing types
-│   │   └── api.ts           # API response types
-│   └── hooks/               # Custom React hooks
+├── app/                     # Next.js App Router pages
+│   └── api/                 # API routes
+│       ├── auth/            # Authentication endpoints
+│       └── gdpr/            # GDPR compliance endpoints
+├── components/              # React components
+├── lib/                     # Utilities and services
+│   └── services/            # Business logic services
+│       ├── auth.ts          # Authentication service
+│       ├── audit.ts         # Audit logging service
+│       ├── encryption.ts    # Encryption utilities
+│       ├── gdpr.ts          # GDPR compliance service
+│       └── jwt.ts           # JWT token management
+├── types/                   # TypeScript definitions
+│   ├── auth.ts              # Authentication types
+│   ├── audio.ts             # Audio recording and processing types
+│   └── api.ts               # API response types
+├── hooks/                   # Custom React hooks
 ├── prisma/                  # Database schema and migrations
 │   ├── schema.prisma        # Prisma schema definition
 │   ├── migrations/          # Database migrations
@@ -152,6 +153,15 @@ voiceflow-ai/
 │   ├── CONFIGURATION.md     # Configuration reference
 │   └── AUTHENTICATION.md    # Authentication & GDPR guide
 └── .kiro/                   # Kiro AI assistant configuration
+```
+
+### Import Examples
+
+```typescript
+// Use @/ for absolute imports from project root
+import { AudioService } from "@/lib/services/audio";
+import { Button } from "@/components/ui/button";
+import type { AudioRecordingResult } from "@/types/audio";
 ```
 
 ## Performance Targets

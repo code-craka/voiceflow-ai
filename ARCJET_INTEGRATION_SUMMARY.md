@@ -6,12 +6,12 @@ VoiceFlow AI now has comprehensive API security powered by Arcjet.
 
 ### Files Created
 
-1. **`src/lib/arcjet.ts`** - Reusable Arcjet configurations
+1. **`lib/arcjet.ts`** - Reusable Arcjet configurations
    - 5 pre-configured instances for different use cases
    - Helper function for handling decisions
    - TypeScript types and error handling
 
-2. **`src/app/api/arcjet/route.ts`** - Demo endpoint
+2. **`app/api/arcjet/route.ts`** - Demo endpoint
    - Shows Arcjet in action
    - Includes bot detection and rate limiting
    - Test endpoint at `/api/arcjet`
@@ -202,7 +202,7 @@ Check Arcjet dashboard for:
 
 ### 3. Adjust Limits
 
-Based on usage patterns, adjust rate limits in `src/lib/arcjet.ts`:
+Based on usage patterns, adjust rate limits in `lib/arcjet.ts`:
 
 ```typescript
 tokenBucket({

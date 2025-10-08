@@ -1,311 +1,106 @@
 ---
 inclusion: always
 ---
+---
+inclusion: always
+---
 
-# Security Guidelines for VoiceFlow AI
+# Security Requirements
 
-## Arcjet Security Integration
+## Mandatory Arcjet Protection
 
-VoiceFlow AI uses Arcjet for comprehensive API security, including bot protection, rate limiting, and attack prevention.
+ALL API routes MUST include Arcjet protection as the first operation. Import from `@/lib/arcjet`.
 
-### Required Configuration
+### Arcjet Configuration Selection
 
-**Environment Variable:**
-```bash
-ARCJET_KEY=your_arcjet_key_here
-```
+Choose based on endpoint type:
 
-Get your key from: https://app.arcjet.com
+- `aj` - Basic shield only (health checks, static content)
+- `ajPublicAPI` - Public endpoints (20 req/min, allows search bots)
+- `ajAuthAPI` - Authenticated endpoints (100 req/min)
+- `ajSensitive` - Auth/payment operations (5 req/min, blocks all bots)
+- `ajAI` - AI/transcription endpoints (10 req/min)
 
-### Arcjet Configurations
-
-We maintain multiple Arcjet configurations in `src/lib/arcjet.ts` for different use cases:
-
-#### 1. Base Configuration (`aj`)
-Basic shield protection without rate limiting.
-
-**Use for:** Static content, health checks, non-sensitive endpoints
+### Required Pattern for All API Routes
 
 ```typescript
-import { aj } from "@/lib/arcjet";
-
-export async function GET(req: Request) {
-  const decision = await aj.protect(req);
-  // Handle decision...
-}
-```
-
-#### 2. Public API Configuration (`ajPublicAPI`)
-Shield + bot detection + moderate rate limiting (20 requests/minute)
-
-**Use for:** Public-facing API endpoints, unauthenticated routes
-
-**Rate Limits:**
-- 20 token capacity
-- Refills 10 tokens per 60 seconds
-- Allows search engine bots
-
-```typescript
-import { ajPublicAPI, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function POST(req: Request) {
-  const decision = await ajPublicAPI.protect(req);
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Your logic here
-}
-```
-
-#### 3. Authenticated API Configuration (`ajAuthAPI`)
-Shield + permissive rate limiting for logged-in users (100 requests/minute)
-
-**Use for:** User-specific endpoints, dashboard APIs, authenticated operations
-
-**Rate Limits:**
-- 100 token capacity
-- Refills 50 tokens per 60 seconds
-- No bot detection (users are authenticated)
-
-```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { ajAuthAPI, handleArcjetDecision } from "@/lib/arcjet";
 
-export async function POST(req: Request) {
-  const decision = await ajAuthAPI.protect(req);
+export async function POST(request: NextRequest) {
+  // 1. REQUIRED: Arcjet protection FIRST
+  const decision = await ajAuthAPI.protect(request);
   const errorResponse = handleArcjetDecision(decision);
   if (errorResponse) return errorResponse;
   
-  // Your authenticated logic here
+  // 2. Better Auth session verification
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // 3. Then: validation, business logic (use session.user.id)
 }
 ```
 
-#### 4. Sensitive Operations Configuration (`ajSensitive`)
-Shield + strict bot detection + strict rate limiting (5 requests/minute)
+**Note**: For authentication patterns, see `better-auth.md` steering documentation.
 
-**Use for:** Authentication, password reset, payment processing, account deletion
-
-**Rate Limits:**
-- 5 token capacity
-- Refills 3 tokens per 60 seconds
-- Blocks all bots
+### Token Costs for Heavy Operations
 
 ```typescript
-import { ajSensitive, handleArcjetDecision } from "@/lib/arcjet";
+// Default: 1 token
+await ajAI.protect(req);
 
-export async function POST(req: Request) {
-  const decision = await ajSensitive.protect(req);
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Your sensitive operation here
-}
+// Heavy operation: 2-5 tokens
+await ajAI.protect(req, { requested: 2 });
 ```
 
-#### 5. AI/Transcription Configuration (`ajAI`)
-Shield + bot detection + balanced rate limiting (10 requests/minute)
+### Rate Limit Reference
 
-**Use for:** Audio upload, transcription, AI processing endpoints
-
-**Rate Limits:**
-- 10 token capacity
-- Refills 5 tokens per 60 seconds
-- Allows search engine bots
-
-```typescript
-import { ajAI, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function POST(req: Request) {
-  const decision = await ajAI.protect(req);
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Your AI processing logic here
-}
-```
-
-### Helper Function
-
-Use `handleArcjetDecision()` to automatically handle common denial scenarios:
-
-```typescript
-import { ajPublicAPI, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function POST(req: Request) {
-  const decision = await ajPublicAPI.protect(req);
-  
-  // Automatically handles rate limits, bots, shield blocks, and hosting IPs
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Continue with your logic
-  return new Response(JSON.stringify({ success: true }));
-}
-```
-
-### API Route Security Patterns
-
-#### Pattern 1: Public Endpoint
-```typescript
-// src/app/api/public/route.ts
-import { ajPublicAPI, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function GET(req: Request) {
-  const decision = await ajPublicAPI.protect(req);
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Public logic
-}
-```
-
-#### Pattern 2: Authenticated Endpoint
-```typescript
-// src/app/api/notes/route.ts
-import { ajAuthAPI, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function POST(req: Request) {
-  const decision = await ajAuthAPI.protect(req);
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // 1. Verify authentication
-  // 2. Process request
-}
-```
-
-#### Pattern 3: AI Processing Endpoint
-```typescript
-// src/app/api/transcription/route.ts
-import { ajAI, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function POST(req: Request) {
-  const decision = await ajAI.protect(req, { requested: 2 }); // Cost 2 tokens
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Process audio/transcription
-}
-```
-
-#### Pattern 4: Sensitive Operation
-```typescript
-// src/app/api/auth/login/route.ts
-import { ajSensitive, handleArcjetDecision } from "@/lib/arcjet";
-
-export async function POST(req: Request) {
-  const decision = await ajSensitive.protect(req);
-  const errorResponse = handleArcjetDecision(decision);
-  if (errorResponse) return errorResponse;
-  
-  // Authentication logic
-}
-```
-
-### Token Costs
-
-You can specify token costs for different operations:
-
-```typescript
-// Light operation (1 token - default)
-const decision = await ajPublicAPI.protect(req);
-
-// Medium operation (2 tokens)
-const decision = await ajAI.protect(req, { requested: 2 });
-
-// Heavy operation (5 tokens)
-const decision = await ajAI.protect(req, { requested: 5 });
-```
-
-### Rate Limit Summary
-
-| Configuration | Capacity | Refill Rate | Use Case |
-|--------------|----------|-------------|----------|
-| `aj` | N/A | N/A | Basic protection only |
+| Config | Capacity | Refill | Use Case |
+|--------|----------|--------|----------|
 | `ajPublicAPI` | 20 | 10/min | Public endpoints |
-| `ajAuthAPI` | 100 | 50/min | Authenticated users |
-| `ajSensitive` | 5 | 3/min | Auth, payments |
+| `ajAuthAPI` | 100 | 50/min | Authenticated |
+| `ajSensitive` | 5 | 3/min | Auth/payments |
 | `ajAI` | 10 | 5/min | AI processing |
 
-### Security Best Practices
+## Data Protection
 
-1. **Always use Arcjet protection** on all API routes
-2. **Choose the right configuration** based on endpoint sensitivity
-3. **Use token costs** to differentiate between light and heavy operations
-4. **Log Arcjet decisions** for monitoring and debugging
-5. **Handle errors gracefully** with user-friendly messages
-6. **Monitor rate limit hits** to adjust limits if needed
-7. **Use DRY_RUN mode** when testing new configurations
+### Encryption Requirements
 
-### Testing Arcjet Protection
-
-Test the demo endpoint:
-```bash
-# Single request
-curl http://localhost:3000/api/arcjet
-
-# Test rate limiting (make multiple requests)
-for i in {1..25}; do curl http://localhost:3000/api/arcjet; echo ""; done
-```
-
-### Monitoring
-
-Monitor Arcjet decisions in your logs:
-```typescript
-const decision = await ajPublicAPI.protect(req);
-console.log("Arcjet decision:", {
-  allowed: !decision.isDenied(),
-  reason: decision.reason,
-  ip: decision.ip,
-});
-```
-
-### DRY_RUN Mode
-
-For testing, use DRY_RUN mode to log decisions without blocking:
-
-```typescript
-import arcjet, { shield, detectBot, tokenBucket } from "@arcjet/next";
-
-const ajTest = arcjet({
-  key: process.env.ARCJET_KEY!,
-  rules: [
-    shield({ mode: "DRY_RUN" }), // Logs only, doesn't block
-    detectBot({ mode: "DRY_RUN" }),
-    tokenBucket({ mode: "DRY_RUN", /* ... */ }),
-  ],
-});
-```
-
-### Additional Resources
-
-- Arcjet Documentation: https://docs.arcjet.com
-- Bot List: https://arcjet.com/bot-list
-- Rate Limiting Guide: https://docs.arcjet.com/rate-limiting
-- Shield Protection: https://docs.arcjet.com/shield
-
-## Other Security Requirements
-
-### Encryption
-- All audio files must be encrypted with AES-256-GCM before storage
-- User-controlled encryption keys stored as hashes
-- See `src/lib/services/encryption.ts` for implementation
+- Audio files: AES-256-GCM encryption before storage
+- Implementation: `lib/services/encryption.ts`
+- Keys: User-controlled, stored as hashes
 
 ### Authentication
-- JWT tokens for session management
-- Secure password hashing with bcrypt
-- GDPR-compliant audit logging
 
-### Input Validation
-- Use Zod schemas for all API inputs
-- Validate file uploads (format, size, content type)
-- Sanitize user inputs to prevent XSS
+- **Better Auth** for authentication and session management
+- Password hashing with `scrypt` (OWASP recommended)
+- HTTP-only cookies for session tokens (prevents XSS)
+- 7-day session expiry with automatic refresh
+- Built-in CSRF protection
+- Audit logging for GDPR compliance
 
-### Database Security
-- Use Prisma ORM (prevents SQL injection)
-- Parameterized queries only
-- Connection pooling for performance
+See `better-auth.md` for detailed authentication patterns.
 
-### HTTPS/TLS
-- TLS 1.3 required for all communications
-- Secure headers configured in Next.js
-- HSTS enabled in production
+## Input Validation
+
+- Zod schemas for ALL API inputs
+- File upload validation: format, size, content type
+- XSS prevention: sanitize user inputs
+
+## Database Security
+
+- Prisma ORM only (no raw SQL)
+- Parameterized queries prevent SQL injection
+- Connection pooling enabled
+
+## GDPR Compliance
+
+When handling user data:
+- Audit log all data operations
+- Support data export (JSON format)
+- Support complete data deletion
+- Store consent preferences
+- Implement data retention policies

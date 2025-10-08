@@ -213,30 +213,40 @@ pnpm run verify-setup     # Verify environment setup
 
 ### Project Structure
 
+**Important**: This project does NOT use a `src/` directory. All code is in root-level folders. The TypeScript path alias `@/` maps to the project root.
+
 ```
 voiceflow-ai/
-├── src/
-│   ├── app/                    # Next.js 15 App Router
-│   │   ├── api/                # API routes
-│   │   ├── dashboard/          # Dashboard pages
-│   │   └── auth/               # Auth pages
-│   ├── components/             # React components
-│   │   ├── ui/                 # Reusable UI components
-│   │   ├── audio/              # Audio recording components
-│   │   ├── notes/              # Notes management
-│   │   └── layout/             # Layout components
-│   ├── lib/                    # Utilities and services
-│   │   ├── services/           # Business logic
-│   │   ├── db/                 # Database utilities
-│   │   ├── auth/               # Authentication
-│   │   ├── validation/         # Input validation
-│   │   └── config/             # Configuration
-│   ├── types/                  # TypeScript definitions
-│   └── hooks/                  # Custom React hooks
+├── app/                        # Next.js 15 App Router
+│   ├── api/                    # API routes
+│   ├── dashboard/              # Dashboard pages
+│   └── auth/                   # Auth pages
+├── components/                 # React components
+│   ├── ui/                     # Reusable UI components
+│   ├── audio/                  # Audio recording components
+│   ├── notes/                  # Notes management
+│   └── layout/                 # Layout components
+├── lib/                        # Utilities and services
+│   ├── services/               # Business logic
+│   ├── db/                     # Database utilities
+│   ├── auth/                   # Authentication
+│   ├── validation/             # Input validation
+│   └── config/                 # Configuration
+├── types/                      # TypeScript definitions
+├── hooks/                      # Custom React hooks
 ├── prisma/                     # Database schema
 ├── tests/                      # Test files
 ├── scripts/                    # Utility scripts
 └── docs/                       # Documentation
+```
+
+### Import Examples
+
+```typescript
+// Use @/ for absolute imports from project root
+import { AudioService } from "@/lib/services/audio";
+import { Button } from "@/components/ui/button";
+import type { User } from "@/types/auth";
 ```
 
 ## Troubleshooting

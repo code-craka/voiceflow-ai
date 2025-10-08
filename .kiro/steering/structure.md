@@ -1,3 +1,7 @@
+---
+inclusion: always
+---
+
 # Project Structure & Organization
 
 ## Directory Structure
@@ -26,10 +30,12 @@ voiceflow-ai/
 │   │   ├── transcription.ts   # Transcription service
 │   │   ├── ai.ts              # AI content service
 │   │   ├── encryption.ts      # Encryption service
+│   │   ├── auth.ts            # Authentication service
 │   │   └── search.ts          # Search service
 │   ├── db/                    # Database utilities
-│   ├── auth/                  # Authentication utilities
 │   ├── validation/            # Input validation schemas
+│   ├── auth.ts                # Better Auth server instance
+│   ├── auth-client.ts         # Better Auth client instance
 │   ├── arcjet.ts              # Arcjet security configurations
 │   └── utils.ts               # General utilities
 ├── types/                     # TypeScript type definitions
@@ -92,21 +98,30 @@ voiceflow-ai/
 
 ```typescript
 // app/api/audio/upload/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { ajAI, handleArcjetDecision } from "@/lib/arcjet";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   // 1. Arcjet security protection
   const decision = await ajAI.protect(request, { requested: 2 });
   const errorResponse = handleArcjetDecision(decision);
   if (errorResponse) return errorResponse;
   
-  // 2. Input validation
-  // 3. Authentication check
-  // 4. Business logic (via service)
+  // 2. Better Auth session verification
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // 3. Input validation
+  // 4. Business logic (via service, use session.user.id)
   // 5. Error handling
   // 6. Response formatting
 }
 ```
+
+**Note**: See `better-auth.md` for detailed authentication patterns.
 
 ### Component Structure
 
@@ -144,12 +159,17 @@ export function AudioRecorder({}: AudioRecorderProps) {
 
 ### Path Aliases
 
+The project uses `@/` as an alias for the root directory:
+
 ```typescript
 // Use absolute imports with path aliases
+// @/ maps to the project root (NOT src/)
 import { AudioService } from "@/lib/services/audio";
 import { Button } from "@/components/ui/button";
 import { AudioRecordingResult } from "@/types/audio";
 ```
+
+**Important**: This project does NOT use a `src/` directory. All code is in root-level folders (`app/`, `components/`, `lib/`, `types/`, etc.).
 
 ## Environment Configuration
 
@@ -178,7 +198,10 @@ S3_SECRET_ACCESS_KEY=
 
 # Security
 ENCRYPTION_KEY=
-JWT_SECRET=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=
+NEXT_PUBLIC_BETTER_AUTH_URL=
+ARCJET_KEY=
 ```
 
 ## Testing Organization

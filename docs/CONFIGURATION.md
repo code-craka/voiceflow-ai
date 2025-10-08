@@ -19,7 +19,7 @@ This document provides an overview of the project configuration and setup.
 
 ### Arcjet Security Configuration
 
-**Location**: `src/app/api/arcjet/route.ts`
+**Location**: `app/api/arcjet/route.ts`
 
 Arcjet provides multi-layered security protection:
 
@@ -55,7 +55,7 @@ Strict mode settings enabled:
 
 Path aliases configured:
 
-- `@/*` maps to `./src/*`
+- `@/*` maps to `./*` (root directory, not `src/`)
 
 ### ESLint Configuration
 
@@ -93,7 +93,7 @@ Test environment:
 - jsdom for browser-like testing
 - React plugin enabled
 - Path aliases configured
-- Setup file: `src/test/setup.ts`
+- Setup file: `test/setup.ts`
 
 ### Prisma ORM Configuration
 
@@ -167,7 +167,7 @@ Database provider: PostgreSQL with direct connection support
 
 **Configuration**: CSS-based (no config file needed)
 
-**File**: `src/app/globals.css`
+**File**: `app/globals.css`
 
 - Tailwind directives included
 - CSS custom properties for theming
@@ -290,17 +290,16 @@ Database provider: PostgreSQL with direct connection support
 
 ```
 voiceflow-ai/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   ├── components/             # React components
-│   ├── lib/                    # Utilities and services
-│   │   ├── config/             # Configuration (env validation)
-│   │   ├── services/           # Business logic services
-│   │   ├── db/                 # Database utilities
-│   │   └── utils.ts            # General utilities
-│   ├── types/                  # TypeScript definitions
-│   ├── hooks/                  # Custom React hooks
-│   └── test/                   # Test setup
+├── app/                        # Next.js App Router
+├── components/                 # React components
+├── lib/                        # Utilities and services
+│   ├── config/                 # Configuration (env validation)
+│   ├── services/               # Business logic services
+│   ├── db/                     # Database utilities
+│   └── utils.ts                # General utilities
+├── types/                      # TypeScript definitions
+├── hooks/                      # Custom React hooks
+├── test/                       # Test setup
 ├── prisma/
 │   ├── schema.prisma           # Database schema
 │   └── seed.ts                 # Database seeding
@@ -320,11 +319,11 @@ voiceflow-ai/
 
 ## TypeScript Type System
 
-The project uses comprehensive TypeScript types for type safety and developer experience. All types are organized by domain in the `src/types/` directory.
+The project uses comprehensive TypeScript types for type safety and developer experience. All types are organized by domain in the `types/` directory.
 
 ### Authentication Types
 
-The project uses strongly-typed interfaces for authentication and user management, defined in `src/types/auth.ts`:
+The project uses strongly-typed interfaces for authentication and user management, defined in `types/auth.ts`:
 
 **Core Types:**
 - `User` - User account with GDPR consent and encryption key
@@ -357,7 +356,7 @@ const request: UserRegistrationRequest = {
 
 ### Audio Types
 
-Audio recording and processing types are defined in `src/types/audio.ts`:
+Audio recording and processing types are defined in `types/audio.ts`:
 
 **Component Types:**
 - `AudioRecorderProps` - Props for audio recorder component
@@ -392,9 +391,52 @@ const handleError = (error: AudioError): void => {
 };
 ```
 
+### Transcription Types
+
+Transcription service types are defined in `types/transcription.ts`:
+
+**Configuration Types:**
+- `TranscriptionOptions` - Options for transcription requests
+- `TranscriptionServiceConfig` - Service configuration with API keys
+- `TranscriptionProvider` - Type union for provider names ("deepgram" | "assemblyai")
+
+**Result Types:**
+- `TranscriptionResult` - Complete transcription result with metadata
+- `TranscriptionChunk` - Streaming transcription chunk for real-time processing
+- `SpeakerSegment` - Speaker diarization segment with timestamps
+- `TranscriptionWord` - Word-level transcription with timing and confidence
+
+**Error Types:**
+- `TranscriptionError` - Structured error with provider info and retry flag
+
+**Usage Example:**
+```typescript
+import type { 
+  TranscriptionResult, 
+  TranscriptionOptions,
+  SpeakerSegment 
+} from '@/types/transcription';
+
+const options: TranscriptionOptions = {
+  language: 'en',
+  enableSpeakerDiarization: true,
+  enablePunctuation: true,
+};
+
+const result: TranscriptionResult = await transcribe(audio, options);
+console.log(`Transcribed by ${result.provider}: ${result.text}`);
+console.log(`Confidence: ${result.confidence * 100}%`);
+
+if (result.speakers) {
+  result.speakers.forEach((segment: SpeakerSegment) => {
+    console.log(`Speaker ${segment.speaker}: ${segment.text}`);
+  });
+}
+```
+
 ### API Response Types
 
-API response types are defined in `src/types/api.ts` for consistent error handling and response formatting.
+API response types are defined in `types/api.ts` for consistent error handling and response formatting.
 
 ## Verification
 

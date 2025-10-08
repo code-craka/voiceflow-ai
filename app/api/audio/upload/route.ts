@@ -7,9 +7,9 @@
 import { NextResponse } from 'next/server';
 import { ajAI, handleArcjetDecision } from '@/lib/arcjet';
 import { validateAudioBuffer, encryptAudio } from '@/lib/services/audio';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/db';
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   try {
     // 1. Arcjet security protection for AI/audio endpoints
     const decision = await ajAI.protect(request, { requested: 2 });
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     // TODO: Upload encrypted data to S3-compatible storage
     // For now, we'll store metadata only
     try {
-      const note = await db.note.create({
+      const note = await prisma.note.create({
         data: {
           userId,
           title: title || `Voice Note ${new Date().toLocaleDateString()}`,
@@ -110,7 +110,12 @@ export async function POST(request: Request) {
           duration,
           folderId: folderId || null,
           metadata: {
-            format: validation.format,
+            format: validation.format ? {
+              mimeType: validation.format.mimeType,
+              codec: validation.format.codec,
+              bitrate: validation.format.bitrate,
+              sampleRate: validation.format.sampleRate,
+            } : undefined,
             originalSize: encryptedData.originalSize,
             encryptedSize: encryptedData.encryptedSize,
             uploadedAt: new Date().toISOString(),

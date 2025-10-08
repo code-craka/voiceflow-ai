@@ -86,7 +86,7 @@ This document describes the authentication and GDPR compliance implementation fo
 
 ## TypeScript Type Definitions
 
-The authentication system uses strongly-typed interfaces defined in `src/types/auth.ts`:
+The authentication system uses strongly-typed interfaces defined in `types/auth.ts`:
 
 ### Core Types
 
